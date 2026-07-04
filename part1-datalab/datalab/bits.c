@@ -2,7 +2,8 @@
  * CS:APP Data Lab 
  * 
  * <Please put your name and userid here>
- * 
+ * Waranyu Kittikamet (6780676) (github: WKittikamet)
+ *
  * bits.c - Source file with your solutions to the Lab.
  *          This is the file you will hand in to your instructor.
  *
@@ -175,7 +176,12 @@ NOTES:
  *  Rating: 2
  */
 int sign(int x) {
-    return 2;
+  /*Arithmetic right shift to get -1 for negative numbers and 0 otherwise.
+    Then use !! to get 1 for any non-zero number and 0 for zero.
+    Combining them with a | yields the correct sign. */
+    int is_neg = x >> 31;
+    int is_nonzero = !(!x);
+    return is_neg | is_nonzero;
 }
 /* 
  * anyEvenBit - return 1 if any even-numbered bit in word set to 1
@@ -185,7 +191,14 @@ int sign(int x) {
  *   Rating: 2
  */
 int anyEvenBit(int x) {
-  return 2;
+  /*Construct a 32-bit mask 0x55555555 where all even bits are set to 1.
+    Duplicate the 8-bit constant 0x55 across all 4 bytes.
+    Then, we & 'x' with this mask and use !! to return 1 if any matching 
+    bit was found, or 0 otherwise. */
+  int mask = 0x55;          
+  mask = mask | (mask << 8);  
+  mask = mask | (mask << 16); 
+  return !(!(x & mask));
 }
 /* 
  * minusOne - return a value of -1 
@@ -194,7 +207,8 @@ int anyEvenBit(int x) {
  *   Rating: 1
  */
 int minusOne(void) {
-  return 2;
+  /*NOT 0 is 1. In two's complement, all 1s mean -1 */
+  return ~0;
 }
 /* 
  * bitMask - Generate a mask consisting of all 1's 
@@ -207,7 +221,16 @@ int minusOne(void) {
  *   Rating: 3
  */
 int bitMask(int highbit, int lowbit) {
-  return 2;
+  /*To isolate the bits between lowbit and highbit, we create two separate masks and &. 
+    1. mask_low: All 1s from 'lowbit' to 31. Created by shifting ~0 (all 1s) left by 'lowbit'.
+    2. mask_high: All 1s from 0 to 'highbit'. To create this, we shift ~0 left by (highbit + 1),
+    and invert it. However, if highbit is 31, (highbit + 1) is 32, which violates the word-size
+    shift limit. We bypass this by chaining two shifts: << highbit << 1.
+    If lowbit > highbit, the two masks will have no overlapping 1s, naturally yielding 0.*/
+  int all_ones = ~0;
+  int mask_low = all_ones << lowbit;
+  int mask_high = ~(all_ones << highbit << 1);
+  return mask_low & mask_high;
 }
 /* 
  * getByte - Extract byte n from word x
@@ -218,7 +241,11 @@ int bitMask(int highbit, int lowbit) {
  *   Rating: 2
  */
 int getByte(int x, int n) {
-  return 2;
+  /*Since each byte is 8 bits, we need to shift x to the right by n * 8 positions.
+    We can compute n * 8 by left-shifting n by 3 (n << 3).*/
+  int shift_amount = n << 3;
+  int shifted_x = x >> shift_amount;
+  return shifted_x & 0xFF;
 }
 /* 
  * absVal - absolute value of x
@@ -229,7 +256,13 @@ int getByte(int x, int n) {
  *   Rating: 4
  */
 int absVal(int x) {
-  return 2;
+  /*Create a mask by arithmetically shifting x right by 31 bits.
+    If x is positive or zero, mask will be 0x00000000 (0).
+    If x is negative, mask will be 0xFFFFFFFF (-1).
+    For positive x: (x + 0) ^ 0 = x
+    For negative x: (x + -1) ^ -1 = ~(x - 1) = -x*/
+  int mask = x >> 31;
+  return (x + mask) ^ mask;
 }
 /*
  * bitCount - returns count of number of 1's in word
@@ -239,7 +272,36 @@ int absVal(int x) {
  *   Rating: 4
  */
 int bitCount(int x) {
-  return 2;
+  /*Construct masks for 2-bit, 4-bit, and 8-bit boundaries.*/
+  int m1 = 0x55;
+  int m2 = 0x33;
+  int m3 = 0x0F;
+
+  m1 = m1 | (m1 << 8);
+  m1 = m1 | (m1 << 16); 
+
+  m2 = m2 | (m2 << 8);
+  m2 = m2 | (m2 << 16); 
+
+  m3 = m3 | (m3 << 8);
+  m3 = m3 | (m3 << 16);
+
+  /*Count bits in each 2-bit group.*/
+  x = (x & m1) + ((x >> 1) & m1);
+    
+  /*Count bits in each 4-bit group.*/
+  x = (x & m2) + ((x >> 2) & m2);
+    
+  /*Count bits in each 8-bit group.*/
+  x = (x + (x >> 4)) & m3;
+    
+  /*Add adjacent 8-bit groups, then 16-bit groups.*/
+  x = x + (x >> 8);
+  x = x + (x >> 16);
+  
+  /*The maximum possible number of bits is 32, which takes 6 bits to represent.
+    Masking with 0x3F (63) isolates our final count.*/
+  return x & 0x3F;
 }
 /* 
  * byteSwap - swaps the nth byte and the mth byte
@@ -251,7 +313,19 @@ int bitCount(int x) {
  *  Rating: 2
  */
 int byteSwap(int x, int n, int m) {
-    return 2;
+  /*If you XOR a position with the difference of two values (val1 ^ val2), it toggles to the other value.
+    1. Compute the bit-shift amounts for bytes n and m by multiplying by 8 (<< 3).
+    2. Extract both target bytes using masks.
+    3. Compute their XOR difference.
+    4. Apply this difference back into the original integer at both byte positions.*/
+  int shift_n = n << 3;
+  int shift_m = m << 3;
+    
+  int byte_n = (x >> shift_n) & 0xFF;
+  int byte_m = (x >> shift_m) & 0xFF;
+    
+  int diff = byte_n ^ byte_m;
+  return x ^ (diff << shift_n) ^ (diff << shift_m);
 }
 /* 
  * bang - Compute !x without using !
@@ -261,7 +335,14 @@ int byteSwap(int x, int n, int m) {
  *   Rating: 4 
  */
 int bang(int x) {
-  return 2;
+  /*Both 0 and -0 have a sign bit of 0. For any non-zero number (including tmin), 
+    either x or -x (~x + 1) will have a sign bit of 1.
+    By ORing x and -x, the highest bit will be 1 for non-zero numbers and 0 for zero.
+    We then arithmetic right shift by 31 to get -1 (all 1s) for non-zero numbers and 0 for zero.
+    Finally, adding 1 yields 0 for non-zero numbers and 1 for zero.*/
+  int minus_x = ~x + 1;
+  int smeared_sign = (x | minus_x) >> 31;
+  return smeared_sign + 1;
 }
 /* 
  * tmin - return minimum two's complement integer 
@@ -270,7 +351,10 @@ int bang(int x) {
  *   Rating: 1
  */
 int tmin(void) {
-  return 2;
+  /*The minimum two's complement 32-bit integer (tmin) is 0x80000000.
+    This is represented by a 1 in the most significant bit (the sign bit)
+    and 0s everywhere else. Left-shifting 1 by 31 bits to get it. */
+  return 1 << 31;
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -280,7 +364,29 @@ int tmin(void) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  return 2;
+  /*To determine if x <= y, we can check the sign of the difference (y - x).
+    However, directly computing (y - x) can cause an integer overflow if x and y 
+    have opposite signs. We must handle two main scenarios:
+    * 1. x and y have different signs (diff_sign == -1):
+      Overflow is possible if we subtract, therefore:
+      If x is negative (sx == -1) and y is positive, x <= y is always true (1).
+      If x is positive (sx == 0) and y is negative, x <= y is always false (0).
+    * 2. x and y have the same sign (diff_sign == 0):
+      Overflow is impossible when subtracting. We compute y + (~x + 1).
+      If the result is non-negative (s_sub == 0), then x <= y is true (1).
+      If the result is negative (s_sub == -1), then x <= y is false (0).
+    We use bitwise masking to select the correct logic depending on `diff_sign`, 
+    producing a final result of -1 (true) or 0 (false), then mask with 1.*/
+  int sx = x >> 31;
+  int sy = y >> 31;
+  int diff_sign = sx ^ sy; /* -1 if signs differ, 0 if signs are the same */
+
+  int sub = y + (~x + 1);
+  int s_sub = sub >> 31;  /* -1 if (y - x) < 0, 0 if (y - x) >= 0 */
+
+  /* If diff_sign is -1, we want sx. If diff_sign is 0, we want ~s_sub. */
+  int ans = (diff_sign & sx) | (~diff_sign & ~s_sub);
+  return ans & 1;
 }
 /* 
  * divpwr2 - Compute x/(2^n), for 0 <= n <= 30
@@ -291,7 +397,17 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 2
  */
 int divpwr2(int x, int n) {
-    return 2;
+  /*Arithmetic right shifting naturally rounds down (toward negative infinity),
+    which works for positive numbers. However, integer division requires 
+    rounding toward zero. For negative numbers, we must add a bias of (2^n - 1) 
+    before shifting to correct this.
+    1. Smear the sign bit across a mask (0 for positive, -1 for negative).
+    2. Compute the maximum bias for 2^n, which is (1 << n) - 1. We use + ~0 for -1.
+    3. & the bias with the sign mask so it only applies to negative numbers.
+    4. Add the bias to x and arithmetic shift right by n.*/
+  int sign = x >> 31;
+  int bias = sign & ((1 << n) + ~0);
+  return (x + bias) >> n;
 }
 /* 
  * negate - return -x 
@@ -301,7 +417,9 @@ int divpwr2(int x, int n) {
  *   Rating: 2
  */
 int negate(int x) {
-  return 2;
+  /*In two's complement representation, the arithmetic negative of a number 
+    is the number with all of its bits interved (~) and adding 1.*/
+  return ~x + 1;
 }
 /* 
  * greatestBitPos - return a mask that marks the position of the
@@ -312,7 +430,22 @@ int negate(int x) {
  *   Rating: 4 
  */
 int greatestBitPos(int x) {
-  return 2;
+  /*First, smear the most significant 1-bit to the right so that all 
+    lower bits become 1s (e.g., 00100000 becomes 00111111).
+    If x is negative, smearing with arithmetic shift produces all 1s (-1).
+    By logically right-shifting this smeared value by 1, we get 00011111. 
+    Finally, XORing the smeared value with the logically right-shifted 
+    value (00111111 ^ 00011111) isolates the single most significant bit.*/
+  int shifted;
+    
+  x = x | (x >> 1);
+  x = x | (x >> 2);
+  x = x | (x >> 4);
+  x = x | (x >> 8);
+  x = x | (x >> 16);
+    
+  shifted = (x >> 1) & ~(1 << 31);
+  return x ^ shifted;
 }
 /* 
  * isPositive - return 1 if x > 0, return 0 otherwise 
@@ -322,5 +455,14 @@ int greatestBitPos(int x) {
  *   Rating: 3
  */
 int isPositive(int x) {
-  return 2;
+  /*A number is strictly positive if it is both non-negative AND non-zero.
+    1. Check if negative: Smear the sign bit using an arithmetic right shift (x >> 31). 
+    This yields -1 (all 1s) for negative numbers, and 0 for non-negative numbers.
+    2. Check if zero: Use the logical NOT operator (!x). This yields 1 if x is 0, 
+    and 0 for any non-zero number.
+    3. | these two conditions. If x is negative or zero, the result 
+    will be non-zero. If x is strictly positive, both sides are 0, so the result is 0.
+    4. Apply a final logical NOT to invert the combined condition, returning 1 
+    only when x > 0.*/
+  return !((x >> 31) | !x);
 }
