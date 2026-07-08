@@ -99,19 +99,64 @@ uint16_t extendedHammingDecode(uint16_t code, int *errorPos) {
     uint16_t correctedCode = code;
     int syndrome = 0;
 
-    // TODO: Recompute parity bits for positions 1, 2, 4, and 8.
+    // Recompute parity bits for positions 1, 2, 4, and 8.
     // Combine the parity check results to form a syndrome (a number from 0 to 15).
+    uint16_t s1 = ((code >> 1) & 1) ^ ((code >> 3) & 1) ^ ((code >> 5) & 1) ^ ((code >> 7) & 1) ^ 
+                  ((code >> 9) & 1) ^ ((code >> 11) & 1) ^ ((code >> 13) & 1) ^ ((code >> 15) & 1);
+                  
+    uint16_t s2 = ((code >> 2) & 1) ^ ((code >> 3) & 1) ^ ((code >> 6) & 1) ^ ((code >> 7) & 1) ^ 
+                  ((code >> 10) & 1) ^ ((code >> 11) & 1) ^ ((code >> 14) & 1) ^ ((code >> 15) & 1);
+                  
+    uint16_t s4 = ((code >> 4) & 1) ^ ((code >> 5) & 1) ^ ((code >> 6) & 1) ^ ((code >> 7) & 1) ^ 
+                  ((code >> 12) & 1) ^ ((code >> 13) & 1) ^ ((code >> 14) & 1) ^ ((code >> 15) & 1);
+                  
+    uint16_t s8 = ((code >> 8) & 1) ^ ((code >> 9) & 1) ^ ((code >> 10) & 1) ^ ((code >> 11) & 1) ^ 
+                  ((code >> 12) & 1) ^ ((code >> 13) & 1) ^ ((code >> 14) & 1) ^ ((code >> 15) & 1);
 
-    // TODO: Check the overall parity bit (bit 0) to decide if an error occurred.
+    int syndrome = (s8 << 3) | (s4 << 2) | (s2 << 1) | s1;
+    uint16_t calculated_ep = 0;
+    for (int i = 1; i <= 15; i++) {
+        calculated_ep ^= (code >> i) & 1;
+    }
+    uint16_t stored_ep = code & 1;
+    int parity_mismatch = (calculated_ep != stored_ep);
+
+    // Check the overall parity bit (bit 0) to decide if an error occurred.
     // If syndrome != 0 and overall parity is incorrect, then a single-bit error occurred.
-
     // Correct the error by flipping the bit at the position indicated by syndrome.
-    // Set *errorPos to the corrected bit position (1-indexed).
-    // If no error, set *errorPos to 0.
-    // If error detection indicates an uncorrectable error, set *errorPos to -1.
+    if (syndrome == 0 && !parity_mismatch) {
+        // Case 1: No errors detected
+        *errorPos = 0;
+    } 
+    else if (syndrome == 0 && parity_mismatch) {
+        // Case 2: Error found purely in the overall parity bit (bit 0)
+        *errorPos = 1; 
+        code ^= (1 << 0); 
+    } 
+    else if (syndrome != 0 && parity_mismatch) {
+        // Case 3: Single-bit error occurred
+        code ^= (1 << syndrome);
+        // Convert the modified bit index back to its 1-indexed matching token for *errorPos
+        *errorPos = syndrome + 1;
+    } 
+    else if (syndrome != 0 && !parity_mismatch) {
+        // Case 4: Double-bit error occured 
+        *errorPos = -1;
+    }
 
-    // TODO: Extract the original 11-bit data from the corrected code word.
+    // Extract the original 11-bit data from the corrected code word.
     uint16_t data = 0;
+    data |= (((code >> 3)  & 1) << 0);
+    data |= (((code >> 5)  & 1) << 1);
+    data |= (((code >> 6)  & 1) << 2);
+    data |= (((code >> 7)  & 1) << 3);
+    data |= (((code >> 9)  & 1) << 4);
+    data |= (((code >> 10) & 1) << 5);
+    data |= (((code >> 11) & 1) << 6);
+    data |= (((code >> 12) & 1) << 7);
+    data |= (((code >> 13) & 1) << 8);
+    data |= (((code >> 14) & 1) << 9);
+    data |= (((code >> 15) & 1) << 10);
 
     return data;
 }
