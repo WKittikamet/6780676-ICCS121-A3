@@ -27,16 +27,58 @@
 uint16_t extendedHammingEncode(uint16_t data) {
     uint16_t code = 0;
 
-    // TODO: Insert the 11 data bits into the proper positions of the 15-bit Hamming code.
-    // For example, assign bit0 of data to position 3, bit1 to position 5, etc.
+    // Insert the 11 data bits into the proper positions of the 15-bit Hamming code.
+    // Extract the 11 data bits from the input word.
+    uint16_t d0  = (data >> 0) & 1;
+    uint16_t d1  = (data >> 1) & 1;
+    uint16_t d2  = (data >> 2) & 1;
+    uint16_t d3  = (data >> 3) & 1;
+    uint16_t d4  = (data >> 4) & 1;
+    uint16_t d5  = (data >> 5) & 1;
+    uint16_t d6  = (data >> 6) & 1;
+    uint16_t d7  = (data >> 7) & 1;
+    uint16_t d8  = (data >> 8) & 1;
+    uint16_t d9  = (data >> 9) & 1;
+    uint16_t d10 = (data >> 10) & 1;
 
-    // TODO: Compute the parity bits for positions 1, 2, 4, and 8.
-    // For each parity bit, XOR all bits in the code word covered by that parity position.
+    //              ⌄Position
+    code |= (d0  << 3);   
+    code |= (d1  << 5);   
+    code |= (d2  << 6);   
+    code |= (d3  << 7);   
+    code |= (d4  << 9);   
+    code |= (d5  << 10);  
+    code |= (d6  << 11);  
+    code |= (d7  << 12);  
+    code |= (d8  << 13);  
+    code |= (d9  << 14);  
+    code |= (d10 << 15);  
 
-    // TODO: Insert the computed parity bits into the code word.
+    // Compute the parity bits for positions 1, 2, 4, and 8.
+    // P1 covers positions with the least significant bit set in binary: 1, 3, 5, 7, 9, 11, 13, 15
+    uint16_t p1 = d0 ^ d1 ^ d3 ^ d4 ^ d6 ^ d8 ^ d10;
+    
+    // P2 covers positions with the second bit set in binary: 2, 3, 6, 7, 10, 11, 14, 15
+    uint16_t p2 = d0 ^ d2 ^ d3 ^ d5 ^ d6 ^ d9 ^ d10;
+    
+    // P4 covers positions with the third bit set in binary: 4, 5, 6, 7, 12, 13, 14, 15
+    uint16_t p4 = d1 ^ d2 ^ d3 ^ d7 ^ d8 ^ d9 ^ d10;
+    
+    // P8 covers positions with the fourth bit set in binary: 8, 9, 10, 11, 12, 13, 14, 15
+    uint16_t p8 = d4 ^ d5 ^ d6 ^ d7 ^ d8 ^ d9 ^ d10;
 
-    // TODO: Compute the overall parity bit (bit 0) as the XOR of bits 1 through 15.
-    // Then, set bit 0 accordingly.
+    // Insert the computed parity bits into the code word.
+    code |= (p1 << 1);
+    code |= (p2 << 2);
+    code |= (p4 << 4);
+    code |= (p8 << 8);
+
+    // Compute the overall parity bit (bit 0) as the XOR of bits 1 through 15. Then, set bit 0 accordingly.
+    uint16_t ep = 0;
+    for (int i = 1; i <= 15; i++) {
+        ep ^= (code >> i) & 1;
+    }
+    code |= (ep << 0);
 
     return code;
 }
