@@ -280,16 +280,13 @@ int bitCount(int x) {
   m3 = m3 | (m3 << 8);
   m3 = m3 | (m3 << 16);
 
-  x = (x & m1) + ((x >> 1) & m1); // Count bits in each 2-bit group.
-    
+  x = (x & m1) + ((x >> 1) & m1); // Count bits in each 2-bit group. 
   x = (x & m2) + ((x >> 2) & m2); // Count bits in each 4-bit group.
-    
   x = (x + (x >> 4)) & m3; // Count bits in each 8-bit group.
     
   // Add adjacent 8-bit groups, then 16-bit groups.
   x = x + (x >> 8);
   x = x + (x >> 16);
-  
   /*
     The maximum possible number of bits is 32, which takes 6 bits to represent.
     Masking with 0x3F (63) isolates our final count.
@@ -308,10 +305,8 @@ int bitCount(int x) {
 int byteSwap(int x, int n, int m) {
   int shift_n = n << 3;
   int shift_m = m << 3;
-    
   int byte_n = (x >> shift_n) & 0xFF;
   int byte_m = (x >> shift_m) & 0xFF;
-    
   int diff = byte_n ^ byte_m;
   return x ^ (diff << shift_n) ^ (diff << shift_m);
 }
@@ -326,7 +321,7 @@ int bang(int x) {
   /*
     Both 0 and -0 have a sign bit of 0. For any non-zero number (including tmin), 
     either x or -x (~x + 1) will have a sign bit of 1.
-    By OR-ing x and -x, the highest bit will be 1 for non-zero numbers and 0 for zero.
+    By bitwise OR-ing x and -x, the highest bit will be 1 for non-zero numbers and 0 for zero.
     We then arithmetic right shift by 31 to get -1 (all 1s) for non-zero numbers and 0 for zero.
     Adding 1 results in 0 for non-zero numbers and 1 for zero.
   */
@@ -354,27 +349,24 @@ int isLessOrEqual(int x, int y) {
   /*
     To determine if x <= y, we can check the sign of the difference (y - x).
     However, directly computing (y - x) can cause an integer overflow if x and y 
-    have opposite signs. We must handle two main scenarios:
-    * 1. x and y have different signs (diff_sign == -1):
+    have opposite signs. There are two main scenarios:
+      1. x and y have different signs (diff_sign == -1):
       Overflow is possible if we subtract, therefore:
-      If x is negative (sx == -1) and y is positive, x <= y is always true (1).
-      If x is positive (sx == 0) and y is negative, x <= y is always false (0).
-    * 2. x and y have the same sign (diff_sign == 0):
-      Overflow is impossible when subtracting. We compute y + (~x + 1).
-      If the result is non-negative (s_sub == 0), then x <= y is true (1).
-      If the result is negative (s_sub == -1), then x <= y is false (0).
-    We use bitwise masking to select the correct logic depending on `diff_sign`, 
+        If x is negative (sx == -1) and y is positive, x <= y is always true (1).
+        If x is positive (sx == 0) and y is negative, x <= y is always false (0).
+      2. x and y have the same sign (diff_sign == 0):
+      Overflow is impossible when subtracting. We compute y + (~x + 1):
+        If the result is non-negative (s_sub == 0), then x <= y is true (1).
+        If the result is negative (s_sub == -1), then x <= y is false (0).
+    We use bitwise masking to select the correct logic depending on 'diff_sign', 
     producing a final result of -1 (true) or 0 (false), then mask with 1.
   */
   int sx = x >> 31;
   int sy = y >> 31;
   int diff_sign = sx ^ sy; // -1 if signs differ, 0 if signs are the same 
-
   int sub = y + (~x + 1);
   int s_sub = sub >> 31;  // -1 if (y - x) < 0, 0 if (y - x) >= 0 
-
-  /* If diff_sign is -1, we want sx. If diff_sign is 0, we want ~s_sub. */
-  int ans = (diff_sign & sx) | (~diff_sign & ~s_sub);
+  int ans = (diff_sign & sx) | (~diff_sign & ~s_sub); // If diff_sign is -1, we want sx. If diff_sign is 0, we want ~s_sub.
   return ans & 1;
 }
 /* 
@@ -387,14 +379,10 @@ int isLessOrEqual(int x, int y) {
  */
 int divpwr2(int x, int n) {
   /*
-    Arithmetic right shifting naturally rounds down (toward negative infinity),
-    which works for positive numbers. However, integer division requires 
-    rounding toward zero. For negative numbers, we must add a bias of (2^n - 1) 
-    before shifting to correct this.
-    1. Smear the sign bit across a mask (0 for positive, -1 for negative).
-    2. Compute the maximum bias for 2^n, which is (1 << n) - 1. We use + ~0 for -1.
-    3. & the bias with the sign mask so it only applies to negative numbers.
-    4. Add the bias to x and arithmetic shift right by n.
+    Smear the sign bit across a mask (0 for positive, -1 for negative).
+    Compute the maximum bias for 2^n, which is (1 << n) - 1. We use + ~0 for -1.
+    Use & on the bias with the sign mask so it only applies to negative numbers.
+    Add the bias to x and arithmetic shift right by n.
   */
   int sign = x >> 31;
   int bias = sign & ((1 << n) + ~0);
@@ -408,7 +396,8 @@ int divpwr2(int x, int n) {
  *   Rating: 2
  */
 int negate(int x) {
-  return ~x + 1; // The arithmetic negative of a number is the number with all of its bits interved (~) and adding 1.
+  // The arithmetic negative of a number is the number with all of its bits interved (~) and adding 1.
+  return ~x + 1;
 }
 /* 
  * greatestBitPos - return a mask that marks the position of the
@@ -439,11 +428,11 @@ int greatestBitPos(int x) {
  */
 int isPositive(int x) {
   /*
-    A number is positive if it is both non-negative AND non-zero.
+    A number is positive if it is both non-negative and non-zero.
     1. Check if negative: Smear the sign bit using an arithmetic right shift (x >> 31). 
     This gives -1 (all 1s) for negative numbers, and 0 for non-negative numbers.
-    2. Check if zero: (!x). This gives 1 if x is 0, and 0 for any non-zero number.
-    3. | these two conditions. If x is negative or zero, the result 
+    2. Check if zero: !x gives 1 if x is 0, and 0 for any non-zero number.
+    3. Apply | to the two conditions. If x is negative or zero, the result 
     will be non-zero. If x is strictly positive, both sides are 0, so the result is 0.
     4. Apply ! to invert the combined condition, returning 1 only when x > 0.
   */
